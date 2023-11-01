@@ -25,11 +25,17 @@ from packaging.version import parse
 from .environment import parse_flag_from_env, str_to_bool
 from .versions import compare_versions, is_torch_version
 
+ENV_VARS_TRUE_VALUES = {"1", "ON", "YES", "TRUE"}
+# Try to run Torch native job in an environment with TorchXLA installed by setting this value to 0.
+USE_TORCH_XLA = os.environ.get("USE_TORCH_XLA", "0").upper()
 
 try:
-    import torch_xla.core.xla_model as xm  # noqa: F401
+    if USE_TORCH_XLA in ENV_VARS_TRUE_VALUES:
+        import torch_xla.core.xla_model as xm  # noqa: F401
 
-    _tpu_available = True
+        _tpu_available = True
+    else:
+        _tpu_available = False
 except ImportError:
     _tpu_available = False
 
@@ -93,7 +99,7 @@ def is_cuda_available():
 def is_tpu_available(check_device=True):
     "Checks if `torch_xla` is installed and potentially if a TPU is in the environment"
     # Due to bugs on the amp series GPUs, we disable torch-xla on them
-    if is_cuda_available():
+    if USE_TORCH_XLA not in ENV_VARS_TRUE_VALUES:
         return False
     if check_device:
         if _tpu_available:
@@ -113,7 +119,9 @@ def is_deepspeed_available():
 def is_bf16_available(ignore_tpu=False):
     "Checks if bf16 is supported, optionally ignoring the TPU"
     if is_tpu_available():
-        return not ignore_tpu
+        if ignore_tpu and os.environ.get("PJRT_DEVICE", "TPU") == "TPU":
+            return False
+        return True
     if torch.cuda.is_available():
         return torch.cuda.is_bf16_supported()
     return True

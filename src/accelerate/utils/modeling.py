@@ -1450,8 +1450,9 @@ def get_mixed_precision_context_manager(native_amp: bool = False, autocast_kwarg
     else:
         autocast_kwargs = autocast_kwargs.to_kwargs()
     if native_amp:
+        device_type = 'cuda' if (state.distributed_type == DistributedType.TPU and os.environ.get("PJRT_DEVICE", "TPU") == "GPU") else state.device.type
         if state.mixed_precision == "fp16":
-            return torch.autocast(device_type=state.device.type, dtype=torch.float16, **autocast_kwargs)
+            return torch.autocast(device_type=device_type, dtype=torch.float16, **autocast_kwargs)
         elif state.mixed_precision == "bf16" and state.distributed_type in [
             DistributedType.NO,
             DistributedType.MULTI_CPU,
@@ -1459,9 +1460,10 @@ def get_mixed_precision_context_manager(native_amp: bool = False, autocast_kwarg
             DistributedType.MULTI_NPU,
             DistributedType.MULTI_XPU,
             DistributedType.FSDP,
+            DistributedType.TPU,
         ]:
-            return torch.autocast(device_type=state.device.type, dtype=torch.bfloat16, **autocast_kwargs)
+            return torch.autocast(device_type=device_type, dtype=torch.bfloat16, **autocast_kwargs)
         else:
-            return torch.autocast(device_type=state.device.type, **autocast_kwargs)
+            return torch.autocast(device_type=device_type, **autocast_kwargs)
     else:
         return contextlib.nullcontext()

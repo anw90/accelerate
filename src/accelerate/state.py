@@ -154,10 +154,11 @@ class PartialState:
                     torch.cuda.set_device(self.device)
             elif is_tpu_available() and not cpu:
                 self.distributed_type = DistributedType.TPU
+                self.device = xm.xla_device()
+                xm.set_replication(self.device, [self.device])
                 self.num_processes = xm.xrt_world_size()
                 self.process_index = xm.get_ordinal()
-                self.local_process_index = xm.get_local_ordinal()
-                self.device = xm.xla_device()
+                self.local_process_index = xm.get_ordinal()#xm.get_local_ordinal()
             elif (
                 os.environ.get("ACCELERATE_USE_DEEPSPEED", "false") == "true"
                 and int(os.environ.get("LOCAL_RANK", -1)) != -1
@@ -750,7 +751,7 @@ class AcceleratorState:
                 )
             # deepspeed handles mixed_precision using deepspeed_config
             self._mixed_precision = "no" if self.distributed_type == DistributedType.DEEPSPEED else mixed_precision
-            if self.distributed_type == DistributedType.TPU:
+            if self.distributed_type == DistributedType.TPU and os.environ.get("PJRT_DEVICE", "TPU") == "TPU":
                 if mixed_precision == "bf16":
                     if os.environ.get("ACCELERATE_DOWNCAST_BF16"):
                         os.environ["XLA_USE_BF16"] = str(0)

@@ -133,6 +133,7 @@ from torch.distributed.algorithms.join import Join
 
 
 if is_tpu_available(check_device=False):
+    import torch_xla.amp as xamp
     import torch_xla.core.xla_model as xm
     import torch_xla.distributed.xla_multiprocessing as xmp
 
@@ -426,13 +427,15 @@ class Accelerator:
             and self.distributed_type not in (DistributedType.DEEPSPEED, DistributedType.MEGATRON_LM)
         ):
             self.native_amp = True
-            if self.device.type not in ("xpu", "cuda", "mps", "npu"):
+            if self.device.type not in ("xpu", "cuda", "mps", "npu") or (is_tpu_available() and os.environ.get("PJRT_DEVICE", "TPU") != "GPU"):
                 raise ValueError(err.format(mode="fp16", requirement="a GPU"))
             kwargs = self.scaler_handler.to_kwargs() if self.scaler_handler is not None else {}
             if self.distributed_type == DistributedType.FSDP:
                 from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
 
                 self.scaler = ShardedGradScaler(**kwargs)
+            elif is_tpu_available() and os.environ.get("PJRT_DEVICE", "TPU") == "GPU":
+                self.scaler = xamp.GradScaler(**kwargs)
             elif is_npu_available():
                 self.scaler = torch.npu.amp.GradScaler(**kwargs)
             else:

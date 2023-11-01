@@ -331,7 +331,7 @@ def prepare_tpu(
     """
     Prepares and returns an environment with the correct TPU environment variables.
     """
-    if args.mixed_precision == "bf16":
+    if args.mixed_precision == "bf16" and os.get.env("PJRT_DEVICE", "TPU") == "TPU":
         if args.downcast_bf16:
             current_env["XLA_DOWNCAST_BF16"] = "1"
         else:
