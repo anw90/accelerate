@@ -18,10 +18,10 @@ import warnings
 import torch
 
 from .state import AcceleratorState, GradientState
-from .utils import DistributedType, honor_type, is_tpu_available
+from .utils import DistributedType, honor_type, is_torch_xla_available
 
 
-if is_tpu_available(check_device=False):
+if is_torch_xla_available():
     import torch_xla.core.xla_model as xm
 
 

@@ -36,7 +36,7 @@ from .utils import (
     is_ipex_available,
     is_mps_available,
     is_npu_available,
-    is_tpu_available,
+    is_torch_xla_available,
     is_xpu_available,
     parse_choice_from_env,
     parse_flag_from_env,
@@ -44,7 +44,7 @@ from .utils import (
 from .utils.dataclasses import SageMakerDistributedType
 
 
-if is_tpu_available(check_device=False):
+if is_torch_xla_available():
     import torch_xla.core.xla_model as xm
 
 
@@ -93,7 +93,7 @@ class ThreadLocalSharedDict(threading.local):
 
 
 # Prefer global shared dictionary, except when using TPU.
-SharedDict = dict if not is_tpu_available(check_device=False) else ThreadLocalSharedDict
+SharedDict = dict if not is_torch_xla_available() else ThreadLocalSharedDict
 
 
 # Inspired by Alex Martelli's 'Borg'.
@@ -152,7 +152,7 @@ class PartialState:
                     if self.device is None:
                         self.device = torch.device("cuda", self.local_process_index)
                     torch.cuda.set_device(self.device)
-            elif is_tpu_available() and not cpu:
+            elif is_torch_xla_available() and not cpu:
                 self.distributed_type = DistributedType.TPU
                 self.device = xm.xla_device()
                 xm.set_replication(self.device, [self.device])
@@ -751,7 +751,7 @@ class AcceleratorState:
                 )
             # deepspeed handles mixed_precision using deepspeed_config
             self._mixed_precision = "no" if self.distributed_type == DistributedType.DEEPSPEED else mixed_precision
-            if self.distributed_type == DistributedType.TPU and os.environ.get("PJRT_DEVICE", "TPU") == "TPU":
+            if self.distributed_type == DistributedType.TPU and is_torch_xla_available(tuple(["TPU"])):
                 if mixed_precision == "bf16":
                     if os.environ.get("ACCELERATE_DOWNCAST_BF16"):
                         os.environ["XLA_USE_BF16"] = str(0)

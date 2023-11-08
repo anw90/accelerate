@@ -82,7 +82,7 @@ from .utils import (
     is_npu_available,
     is_safetensors_available,
     is_torch_version,
-    is_tpu_available,
+    is_torch_xla_available,
     is_xpu_available,
     load_fsdp_model,
     load_fsdp_optimizer,
@@ -132,7 +132,7 @@ if is_megatron_lm_available():
 from torch.distributed.algorithms.join import Join
 
 
-if is_tpu_available(check_device=False):
+if is_torch_xla_available():
     import torch_xla.amp as xamp
     import torch_xla.core.xla_model as xm
     import torch_xla.distributed.xla_multiprocessing as xmp
@@ -427,14 +427,14 @@ class Accelerator:
             and self.distributed_type not in (DistributedType.DEEPSPEED, DistributedType.MEGATRON_LM)
         ):
             self.native_amp = True
-            if self.device.type not in ("xpu", "cuda", "mps", "npu") or (is_tpu_available() and os.environ.get("PJRT_DEVICE", "TPU") != "GPU"):
+            if self.device.type not in ("xpu", "cuda", "mps", "npu", "xla") or is_torch_xla_available(tuple(["TPU"])):
                 raise ValueError(err.format(mode="fp16", requirement="a GPU"))
             kwargs = self.scaler_handler.to_kwargs() if self.scaler_handler is not None else {}
             if self.distributed_type == DistributedType.FSDP:
                 from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
 
                 self.scaler = ShardedGradScaler(**kwargs)
-            elif is_tpu_available() and os.environ.get("PJRT_DEVICE", "TPU") == "GPU":
+            elif is_torch_xla_available(tuple(["GPU"])):
                 self.scaler = xamp.GradScaler(**kwargs)
             elif is_npu_available():
                 self.scaler = torch.npu.amp.GradScaler(**kwargs)
@@ -449,7 +449,7 @@ class Accelerator:
                 self.native_amp = True
             else:
                 self.native_amp = is_bf16_available(True)
-            if mixed_precision == "bf16" and not self.native_amp and not is_tpu_available():
+            if mixed_precision == "bf16" and not self.native_amp and not is_torch_xla_available():
                 raise ValueError(err.format(mode="bf16", requirement="PyTorch >= 1.10 and a supported device."))
 
         # Start of internal step tracking
