@@ -26,6 +26,7 @@ from ..utils import (
     PrecisionType,
     is_ipex_available,
     is_npu_available,
+    is_torch_xla_available,
     is_xpu_available,
 )
 from ..utils.constants import DEEPSPEED_MULTINODE_LAUNCHERS
@@ -331,7 +332,7 @@ def prepare_tpu(
     """
     Prepares and returns an environment with the correct TPU environment variables.
     """
-    if args.mixed_precision == "bf16" and os.get.env("PJRT_DEVICE", "TPU") == "TPU":
+    if args.mixed_precision == "bf16" and is_torch_xla_available(tuple(["TPU"])):
         if args.downcast_bf16:
             current_env["XLA_DOWNCAST_BF16"] = "1"
         else:
