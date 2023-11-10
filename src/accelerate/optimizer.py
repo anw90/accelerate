@@ -122,10 +122,11 @@ class AcceleratedOptimizer(torch.optim.Optimizer):
                 self.optimizer.zero_grad()
 
     def step(self, closure=None):
+        if not self.gradient_state.sync_gradients and self.accelerator_state == DistributedType.TPU:
+            gradients = xm._fetch_gradients(self.optimizer)
+            xm.all_reduce("sum", gradients, scale=1.0/xm.xrt_world_size())
+            self.gradient_state._set_sync_gradients(True)
         if self.gradient_state.sync_gradients:
-            if self.accelerator_state.distributed_type == DistributedType.TPU:
-                gradients = xm._fetch_gradients(self.optimizer)
-                xm.all_reduce("sum", gradients, scale=1.0/xm.xrt_world_size())
             if self.scaler is not None:
                 self.optimizer.step = self._optimizer_patched_step_method
 
@@ -143,6 +144,8 @@ class AcceleratedOptimizer(torch.optim.Optimizer):
                 self._accelerate_step_called = False
             else:
                 self.optimizer.step(closure)
+        if self.accelerator_state == DistributedType.TPU:
+            self.gradient_state._set_sync_gradients(False)
 
     def _switch_parameters(self, parameters_map):
         for param_group in self.optimizer.param_groups:

@@ -449,7 +449,7 @@ class Accelerator:
                 self.native_amp = True
             else:
                 self.native_amp = is_bf16_available(True)
-            if mixed_precision == "bf16" and not self.native_amp and not is_torch_xla_available():
+            if mixed_precision == "bf16" and not self.native_amp and not is_torch_xla_available(tuple(["GPU"])):
                 raise ValueError(err.format(mode="bf16", requirement="PyTorch >= 1.10 and a supported device."))
 
         # Start of internal step tracking
@@ -2083,10 +2083,6 @@ class Accelerator:
             for opt in optimizer:
                 while isinstance(opt, AcceleratedOptimizer):
                     opt = opt.optimizer
-                # Reduce gradients first for XLA
-                if self.distributed_type == DistributedType.TPU:
-                    gradients = xm._fetch_gradients(opt)
-                    self.reduce(gradients, scale=1.0 / self.num_processes)
                 self.scaler.unscale_(opt)
 
     def clip_grad_norm_(self, parameters, max_norm, norm_type=2):
@@ -2124,6 +2120,18 @@ class Accelerator:
             # `accelerator.backward(loss)` is doing that automatically. Therefore, its implementation is not needed
             # We cannot return the gradient norm because DeepSpeed does it.
             return None
+        elif self.distributed_type == DistributedType.TPU:
+            # Reduce gradients first for XLA
+            for acc_opt in self._optimizers:
+                opt = acc_opt
+                while isinstance(opt, AcceleratedOptimizer):
+                    opt = opt.optimizer
+                gradients = xm._fetch_gradients(opt)
+                # Use xm.all_reduce to perform an in-place all-reduce. Recusrsive all-reduce each tensor
+                # one by one in self.reduce is non-inplace.
+                xm.all_reduce("sum", gradients, scale=1.0 / self.num_processes)
+                # Set sync_gradients to True to avoid all-reduce twice in the AccelerateOptimizer step.
+                acc_opt.gradient_state._set_sync_gradients(True)
         self.unscale_gradients()
         return torch.nn.utils.clip_grad_norm_(parameters, max_norm, norm_type=norm_type)
 
