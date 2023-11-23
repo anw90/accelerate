@@ -15,7 +15,7 @@ rendered properly in your Markdown viewer.
 
 # Helpful Utilities
 
-Below are a variety of utility functions that 🤗 Accelerate provides, broken down by use-case. 
+Below are a variety of utility functions that 🤗 Accelerate provides, broken down by use-case.
 
 ## Constants
 
@@ -76,7 +76,7 @@ These are configurable arguments for specific interactions throughout the PyTorc
 
 ## Plugins
 
-These are plugins that can be passed to the [`Accelerator`] object. While they are defined elsewhere in the documentation, 
+These are plugins that can be passed to the [`Accelerator`] object. While they are defined elsewhere in the documentation,
 for convenience all of them are available to see here:
 
 [[autodoc]] utils.DeepSpeedPlugin
@@ -138,7 +138,7 @@ These include data operations that mimic the same `torch` ops but can be used on
 
 ## Environment Checks
 
-These functionalities check the state of the current working environment including information about the operating system itself, what it can support, and if particular dependencies are installed. 
+These functionalities check the state of the current working environment including information about the operating system itself, what it can support, and if particular dependencies are installed.
 
 [[autodoc]] utils.is_bf16_available
 
@@ -150,7 +150,7 @@ These functionalities check the state of the current working environment includi
 
 [[autodoc]] utils.is_torch_version
 
-[[autodoc]] utils.is_tpu_available
+[[autodoc]] utils.is_torch_xla_available
 
 [[autodoc]] utils.is_xpu_available
 
